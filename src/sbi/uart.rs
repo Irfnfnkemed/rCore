@@ -1,12 +1,9 @@
-use core::cell::RefCell;
 use core::fmt::{self, Write};
-use core::ops::DerefMut;
 use core::sync::atomic::{AtomicPtr, Ordering};
+use lazy_static::lazy_static;
+use crate::sync::safe_cell_single::SafeCellSingle;
 
 const UART_BASE: usize = 0x10000000;
-const SHUT_DOWN_ADDR: usize = 0x100000;
-const SHUT_DOWN_FLAG: usize = 0x5555;
-
 
 macro_rules! wait_for {
     ($cond:expr) => {
@@ -68,9 +65,9 @@ impl UartRegs {
         for i in 0..regs.len() {
             regs[i] = AtomicPtr::new(unsafe { base_ptr.offset(i as isize) });
         }
-        let tmp = UartRegs { regs };
-        tmp.init(); // Initialize the UART
-        tmp
+        let uart = UartRegs { regs };
+        uart.init(); // Initialize the UART
+        uart
     }
 
     pub fn init(&self) {
@@ -118,12 +115,8 @@ impl UartRegs {
     }
 }
 
-pub fn print(args: fmt::Arguments) {
-    UartRegs::new(UART_BASE).write_fmt(args).unwrap();
+lazy_static! {
+   pub static ref UART: SafeCellSingle<UartRegs> = unsafe { SafeCellSingle::new(UartRegs::new(UART_BASE))};
 }
 
-pub fn shutdown() -> ! {
-    let tmp = AtomicPtr::new(SHUT_DOWN_ADDR as *mut usize).load(Ordering::Acquire);
-    unsafe { tmp.write(SHUT_DOWN_FLAG); }
-    unreachable!()
-}
+
