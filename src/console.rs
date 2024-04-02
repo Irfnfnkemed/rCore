@@ -1,6 +1,3 @@
-use crate::sbi::print;
-
-
 #[macro_export]
 macro_rules! print {
     ($fmt: literal $(, $($arg: tt)+)?) => {
