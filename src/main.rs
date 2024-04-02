@@ -8,6 +8,9 @@ mod lang_items;
 mod console;
 mod sync;
 mod sbi;
+mod trap;
+mod bach;
+mod syscall;
 
 global_asm!(include_str!("entry.asm"));
 
