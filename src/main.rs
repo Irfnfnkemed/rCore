@@ -6,6 +6,8 @@ use core::arch::{asm, global_asm};
 
 use riscv::register::{mepc, mstatus, pmpaddr0, pmpcfg0, satp, sie};
 
+use crate::syscall::syscall;
+
 mod lang_items;
 #[macro_use]
 mod console;
@@ -14,6 +16,7 @@ mod sbi;
 mod trap;
 mod bach;
 mod syscall;
+mod mm;
 
 global_asm!(include_str!("entry.asm"));
 
@@ -22,6 +25,9 @@ global_asm!(include_str!("entry.asm"));
 pub fn rust_main() -> ! {
     clear_bss();
     println!("Hello, world!");
+    let array: [u8; 10] = [u8::try_from('a').unwrap(); 10];
+    syscall(64, [1, &array[0] as *const u8 as usize, 10]);
+    syscall(93, [4, 0, 0]);
     panic!("Shutdown machine!");
 }
 
