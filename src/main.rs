@@ -8,6 +8,7 @@ use core::arch::{asm, global_asm};
 
 use riscv::register::{mepc, mstatus, pmpaddr0, pmpcfg0, satp, sie};
 
+use crate::mm::init_heap;
 use crate::syscall::syscall;
 
 mod lang_items;
@@ -26,7 +27,7 @@ global_asm!(include_str!("entry.asm"));
 #[no_mangle]
 pub fn rust_main() -> ! {
     clear_bss();
-    mm::buddy::init_heap();
+    init_heap();
     println!("Hello, world!");
     panic!("Shutdown machine!");
 }
@@ -64,5 +65,3 @@ fn clear_bss() {
         unsafe { (a as *mut u8).write_volatile(0) }
     });
 }
-
-
