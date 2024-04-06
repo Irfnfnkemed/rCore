@@ -3,6 +3,9 @@
 #![feature(panic_info_message)]
 
 extern crate alloc;
+#[macro_use]
+extern crate bitflags;
+
 
 use core::arch::{asm, global_asm};
 
@@ -28,6 +31,7 @@ global_asm!(include_str!("entry.asm"));
 pub fn rust_main() -> ! {
     clear_bss();
     init_heap();
+    mm::frame_allocator::frame_allocator_test();
     println!("Hello, world!");
     panic!("Shutdown machine!");
 }

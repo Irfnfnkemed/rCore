@@ -1,11 +1,5 @@
-use alloc::alloc::alloc;
-use core::alloc::GlobalAlloc;
-use core::alloc::Layout;
-use core::arch::asm;
-use core::borrow::BorrowMut;
-use core::cell::{RefCell, RefMut};
+use core::alloc::{GlobalAlloc, Layout};
 use core::cmp::{max, min};
-use core::mem::size_of;
 use core::ptr::null_mut;
 
 pub const KERNEL_HEAP_SIZE: usize = 0x40_0000;
