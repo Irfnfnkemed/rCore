@@ -11,7 +11,7 @@ use core::arch::{asm, global_asm};
 
 use riscv::register::{mepc, mstatus, pmpaddr0, pmpcfg0, satp, sie};
 
-use crate::mm::init_heap;
+use crate::mm::init_mm;
 use crate::syscall::syscall;
 
 mod lang_items;
@@ -30,8 +30,7 @@ global_asm!(include_str!("entry.asm"));
 #[no_mangle]
 pub fn rust_main() -> ! {
     clear_bss();
-    init_heap();
-    mm::frame_allocator::frame_allocator_test();
+    init_mm();
     println!("Hello, world!");
     panic!("Shutdown machine!");
 }

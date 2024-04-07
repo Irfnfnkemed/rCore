@@ -1,6 +1,12 @@
+use alloc::vec;
+use alloc::vec::Vec;
+
 use bitflags::*;
 
-use crate::mm::address::PhysPageNum;
+use crate::mm::address::{PhysPageNum, VirtPageNum};
+use crate::mm::frame_allocator::{frame_alloc, FrameTracker};
+
+const VPN_PTE_BITS: usize = 9;
 
 bitflags! {
     pub struct PTEFlags: u8 {
@@ -21,6 +27,11 @@ pub struct PageTableEntry {
     pub bits: usize,
 }
 
+pub struct PageTable {
+    root_ppn: PhysPageNum,
+    frames: Vec<FrameTracker>,
+}
+
 impl PageTableEntry {
     pub fn new(ppn: PhysPageNum, flags: PTEFlags) -> Self {
         PageTableEntry {
@@ -29,9 +40,7 @@ impl PageTableEntry {
     }
 
     pub fn empty() -> Self {
-        PageTableEntry {
-            bits: 0,
-        }
+        PageTableEntry { bits: 0 }
     }
 
     pub fn ppn(&self) -> PhysPageNum {
@@ -43,18 +52,99 @@ impl PageTableEntry {
     }
 
     pub fn is_valid(&self) -> bool {
-        (self.flags() & PTEFlags::V) != PTEFlags::empty()
+        (self.flags() & PTEFlags::V).bits != 0
     }
 
     pub fn readable(&self) -> bool {
-        (self.flags() & PTEFlags::R) != PTEFlags::empty()
+        (self.flags() & PTEFlags::R).bits != 0
     }
 
     pub fn writable(&self) -> bool {
-        (self.flags() & PTEFlags::W) != PTEFlags::empty()
+        (self.flags() & PTEFlags::W).bits != 0
     }
 
     pub fn executable(&self) -> bool {
-        (self.flags() & PTEFlags::X) != PTEFlags::empty()
+        (self.flags() & PTEFlags::X).bits != 0
+    }
+
+    pub fn is_leaf(&self) -> bool {
+        self.readable() || self.writable() || self.executable()
+    }
+}
+
+impl PageTable {
+    pub fn new() -> Self {
+        let frame = frame_alloc().unwrap();
+        PageTable {
+            root_ppn: frame.ppn,
+            frames: vec![frame],
+        }
+    }
+
+    pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
+        let pte = self.create_pte(vpn).unwrap();
+        *pte = PageTableEntry::new(ppn, flags | PTEFlags::V);
+    }
+
+    pub fn unmap(&mut self, vpn: VirtPageNum) {
+        let pte = self.find_pte(vpn).unwrap();
+        *pte = PageTableEntry::empty();
+    }
+
+
+    fn find_pte(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+        let mut index = [0usize; 3];
+        for i in 0..3 {
+            index[i] = (vpn.0 >> (VPN_PTE_BITS * (2 - i))) & (1 << (VPN_PTE_BITS) - 1);
+        }
+        let mut ppn = self.root_ppn;
+        for i in 0..3 {
+            let pte = &mut ppn.get_pte_array()[index[i]];
+            if !pte.is_valid() {
+                return None;
+            }
+            if i == 2 {
+                return if pte.is_leaf() { Some(pte) } else { None }; // leaf page is (in)valid
+            } else {
+                if pte.is_leaf() {
+                    return None; // TODO: huge page
+                } else {
+                    ppn = pte.ppn();
+                }
+            }
+        }
+        return None;
+    }
+
+    fn create_pte(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+        let mut index = [0usize; 3];
+        for i in 0..3 {
+            index[i] = (vpn.0 >> (VPN_PTE_BITS * (2 - i))) & (1 << (VPN_PTE_BITS) - 1);
+        }
+        let mut ppn = self.root_ppn;
+        for i in 0..3 {
+            let pte = &mut ppn.get_pte_array()[index[i]];
+            if i == 2 {
+                return if pte.is_valid() {
+                    None // the vpn has been mapped before
+                } else {
+                    Some(pte)
+                };
+            } else {
+                if !pte.is_valid() {
+                    let frame = frame_alloc().unwrap();
+                    *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
+                    self.frames.push(frame);
+                } else if pte.is_leaf() {
+                    return None; // TODO: huge page
+                }
+                ppn = pte.ppn();
+            }
+        }
+        return None;
+    }
+
+    pub fn token(&self) -> usize {
+        8usize << 60 | self.root_ppn.0
     }
 }
