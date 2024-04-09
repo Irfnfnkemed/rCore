@@ -6,11 +6,19 @@ use core::arch::asm;
 use lazy_static::lazy_static;
 use riscv::register::satp;
 
-use crate::mm::address::{PhysPageNum, VirtAddr, VirtPageNum};
+use crate::mm::address::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 use crate::mm::area::{MapArea, MapPermission, MapType};
 use crate::mm::frame_allocator::{frame_alloc, FrameTracker, MEMORY_END};
 use crate::mm::page_table::{PageTable, PTEFlags};
 use crate::sync::safe_cell_single::SafeCellSingle;
+
+pub const TRAMPOLINE: usize = usize::MAX - 0x1000 + 1;
+
+pub const MMIO: &[(usize, usize)] = &[
+    (0x0010_0000, 0x00_2000), // VIRT_TEST/RTC  in virt machine
+];
+
+pub const UART_BASE_ADDRESS: usize = 0x10_000_000;
 
 extern "C" {
     fn stext();
@@ -55,7 +63,7 @@ impl MemorySet {
     pub fn new_kernel() -> Self {
         let mut memory_set = Self::new_bare();
         // map trampoline
-        // TODO:memory_set.map_trampoline();
+        memory_set.map_trampoline();
         // map kernel sections
         println!(".text [{:#x}, {:#x})", stext as usize, etext as usize);
         println!(".rodata [{:#x}, {:#x})", srodata as usize, erodata as usize);
@@ -96,40 +104,66 @@ impl MemorySet {
             MapType::Identical,
             MapPermission::R | MapPermission::W,
         ), None);
+        memory_set.push(MapArea::new(
+            UART_BASE_ADDRESS.into(),
+            (UART_BASE_ADDRESS + 0x6).into(),
+            MapType::Identical,
+            MapPermission::R | MapPermission::W,
+        ), None);
+        println!("mapping memory-mapped registers");
+        for pair in MMIO {
+            memory_set.push(
+                MapArea::new(
+                    (*pair).0.into(),
+                    ((*pair).0 + (*pair).1).into(),
+                    MapType::Identical,
+                    MapPermission::R | MapPermission::W,
+                ),
+                None,
+            );
+        }
         memory_set
     }
     //pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize);
 
-    pub fn activate(&self) {
+    pub fn activate(&mut self) {
         unsafe {
             satp::write(self.page_table.token());
             asm!("sfence.vma");
         }
     }
+
+    fn map_trampoline(&mut self) {
+        self.page_table.map(
+            VirtAddr::from(TRAMPOLINE).into(),
+            PhysAddr::from(strampoline as usize).into(),
+            PTEFlags::R | PTEFlags::X,
+        );
+    }
 }
 
 lazy_static! {
-    pub static ref KERNEL_SPACE: Arc<SafeCellSingle<MemorySet>> = Arc::new(unsafe {
+    pub static ref KERNEL_SPACE: Arc<SafeCellSingle<MemorySet>> = Arc::new( unsafe {
         SafeCellSingle::new(MemorySet::new_kernel()
     )});
 }
 
 pub fn remap_test() {
-    // let mut kernel_space = KERNEL_SPACE.lock();
-    // let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
-    // let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
-    // let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
-    // assert_eq!(
-    //     kernel_space.page_table.translate(mid_text.floor()).unwrap().writable(),
-    //     false
-    // );
-    // assert_eq!(
-    //     kernel_space.page_table.translate(mid_rodata.floor()).unwrap().writable(),
-    //     false,
-    // );
-    // assert_eq!(
-    //     kernel_space.page_table.translate(mid_data.floor()).unwrap().executable(),
-    //     false,
-    // );
+    let mut kernel_space = KERNEL_SPACE.borrow_exclusive();
+    let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
+    let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
+    let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
+    assert_eq!(
+        kernel_space.page_table.translate(mid_text.floor()).unwrap().writable(),
+        false
+    );
+    assert_eq!(
+        kernel_space.page_table.translate(mid_rodata.floor()).unwrap().writable(),
+        false,
+    );
+    assert_eq!(
+        kernel_space.page_table.translate(mid_data.floor()).unwrap().executable(),
+        false,
+    );
     println!("remap_test passed!");
 }

@@ -92,15 +92,17 @@ impl PageTable {
     }
 
 
-    fn find_pte(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+    pub fn find_pte(&self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
         let mut index = [0usize; 3];
         for i in 0..3 {
-            index[i] = (vpn.0 >> (VPN_PTE_BITS * (2 - i))) & (1 << (VPN_PTE_BITS) - 1);
+            index[i] = (vpn.0 >> (VPN_PTE_BITS * (2 - i))) & ((1 << VPN_PTE_BITS) - 1);
         }
         let mut ppn = self.root_ppn;
         for i in 0..3 {
+            println!("!");
             let pte = &mut ppn.get_pte_array()[index[i]];
             if !pte.is_valid() {
+                println!("?{:X}", pte.bits);
                 return None;
             }
             if i == 2 {
@@ -119,7 +121,7 @@ impl PageTable {
     fn create_pte(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
         let mut index = [0usize; 3];
         for i in 0..3 {
-            index[i] = (vpn.0 >> (VPN_PTE_BITS * (2 - i))) & (1 << (VPN_PTE_BITS) - 1);
+            index[i] = (vpn.0 >> (VPN_PTE_BITS * (2 - i))) & ((1 << VPN_PTE_BITS) - 1);
         }
         let mut ppn = self.root_ppn;
         for i in 0..3 {
@@ -136,6 +138,7 @@ impl PageTable {
                     *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
                     self.frames.push(frame);
                 } else if pte.is_leaf() {
+                    println!("b");
                     return None; // TODO: huge page
                 }
                 ppn = pte.ppn();
@@ -145,6 +148,10 @@ impl PageTable {
     }
 
     pub fn token(&self) -> usize {
-        8usize << 60 | self.root_ppn.0
+        8usize << 60 | (self.root_ppn.0)
+    }
+
+    pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
+        self.find_pte(vpn).map(|pte| *pte)
     }
 }

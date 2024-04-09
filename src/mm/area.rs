@@ -42,7 +42,7 @@ impl MapArea {
 
     pub fn map(&mut self, page_table: &mut PageTable) {
         let mut tmp = self.vpn_beg.0;
-        while tmp <= self.vpn_end.0 {
+        while tmp < self.vpn_end.0 {
             let ppn: PhysPageNum;
             match self.map_type {
                 MapType::Identical => {
@@ -62,7 +62,7 @@ impl MapArea {
 
     pub fn unmap(&mut self, page_table: &mut PageTable) {
         let mut tmp = self.vpn_beg.0;
-        while tmp <= self.vpn_end.0 {
+        while tmp < self.vpn_end.0 {
             page_table.unmap(VirtPageNum::from(tmp));
             tmp += 1;
         }
