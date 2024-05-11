@@ -99,10 +99,8 @@ impl PageTable {
         }
         let mut ppn = self.root_ppn;
         for i in 0..3 {
-            println!("!");
             let pte = &mut ppn.get_pte_array()[index[i]];
             if !pte.is_valid() {
-                println!("?{:X}", pte.bits);
                 return None;
             }
             if i == 2 {
@@ -138,7 +136,6 @@ impl PageTable {
                     *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
                     self.frames.push(frame);
                 } else if pte.is_leaf() {
-                    println!("b");
                     return None; // TODO: huge page
                 }
                 ppn = pte.ppn();

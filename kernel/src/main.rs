@@ -20,7 +20,7 @@ mod console;
 mod sync;
 mod sbi;
 mod trap;
-mod bach;
+mod batch;
 mod syscall;
 mod mm;
 

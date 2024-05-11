@@ -61,7 +61,6 @@ impl FrameAllocator for StackFrameAllocator {
 
 impl StackFrameAllocator {
     pub fn init(&mut self, _beg: PhysPageNum, _end: PhysPageNum) {
-        println!("beg:{:X}",_beg.0);
         self.beg = _beg.0;
         self.end = _end.0;
     }

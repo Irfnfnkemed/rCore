@@ -31,6 +31,10 @@ impl VirtAddr {
     pub fn ceil(&self) -> VirtPageNum { VirtPageNum((self.0 + PAGE_SIZE - 1) / PAGE_SIZE) }
 }
 
+impl VirtPageNum {
+    pub fn next(&mut self) { self.0 += 1 }
+}
+
 impl From<usize> for PhysAddr {
     fn from(v: usize) -> Self { Self(v & ((1 << PA_WIDTH_SV39) - 1)) }
 }

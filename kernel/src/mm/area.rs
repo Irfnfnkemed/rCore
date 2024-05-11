@@ -5,6 +5,8 @@ use crate::mm::area::MapType::Framed;
 use crate::mm::frame_allocator::{frame_alloc, FrameTracker};
 use crate::mm::page_table::{PageTable, PTEFlags};
 
+const PAGE_SIZE: usize = 0x1000;
+
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum MapType {
     Identical,
@@ -67,25 +69,29 @@ impl MapArea {
             tmp += 1;
         }
     }
-    //
-    // pub fn copy_data(&mut self, page_table: &mut PageTable, data: &[u8]) {
-    //     assert_eq!(self.map_type, MapType::Framed);
-    //     let mut start: usize = 0;
-    //     let mut current_vpn = self.vpn_beg;
-    //     let len = data.len();
-    //     loop {
-    //         let src = &data[start..len.min(start + PAGE_SIZE)];
-    //         let dst = &mut page_table
-    //             .translate(current_vpn)
-    //             .unwrap()
-    //             .ppn()
-    //             .get_bytes_array()[..src.len()];
-    //         dst.copy_from_slice(src);
-    //         start += PAGE_SIZE;
-    //         if start >= len {
-    //             break;
-    //         }
-    //         current_vpn.step();
-    //     }
-    // }
+
+    pub fn get_end(&self) -> VirtPageNum {
+        self.vpn_end
+    }
+
+    pub fn copy_data(&mut self, page_table: &mut PageTable, data: &[u8]) {
+        assert_eq!(self.map_type, MapType::Framed);
+        let mut start: usize = 0;
+        let mut current_vpn = self.vpn_beg;
+        let len = data.len();
+        loop {
+            let src = &data[start..len.min(start + PAGE_SIZE)];
+            let dst = &mut page_table
+                .translate(current_vpn)
+                .unwrap()
+                .ppn()
+                .get_bytes_array()[..src.len()];
+            dst.copy_from_slice(src);
+            start += PAGE_SIZE;
+            if start >= len {
+                break;
+            }
+            current_vpn.next();
+        }
+    }
 }

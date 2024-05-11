@@ -13,12 +13,13 @@ use crate::mm::page_table::{PageTable, PTEFlags};
 use crate::sync::safe_cell_single::SafeCellSingle;
 
 pub const TRAMPOLINE: usize = usize::MAX - 0x1000 + 1;
+pub const TRAP_CONTEXT: usize = usize::MAX - 0x2000 + 1;
+pub const UART_BASE_ADDRESS: usize = 0x10_000_000;
+pub const PAGE_SIZE: usize = 0x1000;
 
 pub const MMIO: &[(usize, usize)] = &[
     (0x0010_0000, 0x00_2000), // VIRT_TEST/RTC  in virt machine
 ];
-
-pub const UART_BASE_ADDRESS: usize = 0x10_000_000;
 
 extern "C" {
     fn stext();
@@ -51,7 +52,7 @@ impl MemorySet {
     fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
         if let Some(data) = data {
-            // map_area.copy_data(&mut self.page_table, data);
+            map_area.copy_data(&mut self.page_table, data);
         }
         self.areas.push(map_area);
     }
@@ -65,39 +66,30 @@ impl MemorySet {
         // map trampoline
         memory_set.map_trampoline();
         // map kernel sections
-        println!(".text [{:#x}, {:#x})", stext as usize, etext as usize);
-        println!(".rodata [{:#x}, {:#x})", srodata as usize, erodata as usize);
-        println!(".data [{:#x}, {:#x})", sdata as usize, edata as usize);
-        println!(".bss [{:#x}, {:#x})", sbss_with_stack as usize, ebss as usize);
-        println!("mapping .text section");
         memory_set.push(MapArea::new(
             (stext as usize).into(),
             (etext as usize).into(),
             MapType::Identical,
             MapPermission::R | MapPermission::X,
         ), None);
-        println!("mapping .rodata section");
         memory_set.push(MapArea::new(
             (srodata as usize).into(),
             (erodata as usize).into(),
             MapType::Identical,
             MapPermission::R,
         ), None);
-        println!("mapping .data section");
         memory_set.push(MapArea::new(
             (sdata as usize).into(),
             (edata as usize).into(),
             MapType::Identical,
             MapPermission::R | MapPermission::W,
         ), None);
-        println!("mapping .bss section");
         memory_set.push(MapArea::new(
             (sbss_with_stack as usize).into(),
             (ebss as usize).into(),
             MapType::Identical,
             MapPermission::R | MapPermission::W,
         ), None);
-        println!("mapping physical memory");
         memory_set.push(MapArea::new(
             (ekernel as usize).into(),
             MEMORY_END.into(),
@@ -110,7 +102,6 @@ impl MemorySet {
             MapType::Identical,
             MapPermission::R | MapPermission::W,
         ), None);
-        println!("mapping memory-mapped registers");
         for pair in MMIO {
             memory_set.push(
                 MapArea::new(
@@ -124,7 +115,64 @@ impl MemorySet {
         }
         memory_set
     }
-    //pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize);
+
+    pub fn from_elf(elf_data: &[u8]) -> (Self, usize) {
+        let mut memory_set = Self::new_bare();
+        // map trampoline
+        memory_set.map_trampoline();
+        // map program headers of elf, with U flag
+        let elf = xmas_elf::ElfFile::new(elf_data).unwrap();
+        let elf_header = elf.header;
+        let magic = elf_header.pt1.magic;
+        assert_eq!(magic, [0x7f, 0x45, 0x4c, 0x46], "invalid elf!");
+        let ph_count = elf_header.pt2.ph_count();
+        let mut max_end_vpn = VirtPageNum(0);
+        for i in 0..ph_count {
+            let ph = elf.program_header(i).unwrap();
+            if ph.get_type().unwrap() == xmas_elf::program::Type::Load {
+                let start_va: VirtAddr = (ph.virtual_addr() as usize).into();
+                let end_va: VirtAddr = ((ph.virtual_addr() + ph.mem_size()) as usize).into();
+                let mut map_perm = MapPermission::U;
+                let ph_flags = ph.flags();
+                if ph_flags.is_read() { map_perm |= MapPermission::R; }
+                if ph_flags.is_write() { map_perm |= MapPermission::W; }
+                if ph_flags.is_execute() { map_perm |= MapPermission::X; }
+                let map_area = MapArea::new(
+                    start_va,
+                    end_va,
+                    MapType::Framed,
+                    map_perm,
+                );
+                max_end_vpn = map_area.get_end();
+                memory_set.push(
+                    map_area,
+                    Some(&elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize]),
+                );
+            }
+        }
+        // map user stack with U flags
+        let max_end_va: VirtAddr = max_end_vpn.into();
+        let mut user_stack_bottom: usize = max_end_va.into();
+        // guard page
+        user_stack_bottom += PAGE_SIZE;
+        // TODO: user stack
+        let user_stack_top = user_stack_bottom;
+        // let user_stack_top = user_stack_bottom + USER_STACK_SIZE;
+        // memory_set.push(MapArea::new(
+        //     user_stack_bottom.into(),
+        //     user_stack_top.into(),
+        //     MapType::Framed,
+        //     MapPermission::R | MapPermission::W | MapPermission::U,
+        // ), None);
+        // map TrapContext
+        memory_set.push(MapArea::new(
+            TRAP_CONTEXT.into(),
+            TRAMPOLINE.into(),
+            MapType::Framed,
+            MapPermission::R | MapPermission::W,
+        ), None);
+        (memory_set, elf.header.pt2.entry_point() as usize)
+    }
 
     pub fn activate(&mut self) {
         unsafe {
@@ -153,6 +201,7 @@ pub fn remap_test() {
     let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
     let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
     let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
+    let mid_phy: VirtAddr = ((ekernel as usize + MEMORY_END) / 2).into();
     assert_eq!(
         kernel_space.page_table.translate(mid_text.floor()).unwrap().writable(),
         false
@@ -163,6 +212,10 @@ pub fn remap_test() {
     );
     assert_eq!(
         kernel_space.page_table.translate(mid_data.floor()).unwrap().executable(),
+        false,
+    );
+    assert_eq!(
+        kernel_space.page_table.translate(mid_phy.floor()).unwrap().executable(),
         false,
     );
     println!("remap_test passed!");
