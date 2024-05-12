@@ -1,11 +1,11 @@
 use crate::mm::memory_set::{KERNEL_SPACE, remap_test};
 
 pub mod buddy;
-mod address;
+pub(crate) mod address;
 mod page_table;
 pub mod frame_allocator;
-mod memory_set;
-mod area;
+pub mod memory_set;
+pub mod area;
 
 pub fn init_mm() {
     buddy::init_heap();

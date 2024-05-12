@@ -1,5 +1,3 @@
-mod context;
-
 use core::arch::global_asm;
 
 use riscv::register::{
@@ -7,8 +5,11 @@ use riscv::register::{
     scause::{self, Exception, Trap},
     stval, stvec,
 };
+
 use crate::syscall::syscall;
 use crate::trap::context::TrapContext;
+
+mod context;
 
 global_asm!(include_str!("trap.S"));
 
@@ -27,7 +28,8 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
             cx.sepc += 4;
-            cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
+            cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12],
+                cx.x[13], cx.x[14], cx.x[15], cx.x[16]]) as usize;
         }
         Trap::Exception(Exception::StoreFault) |
         Trap::Exception(Exception::StorePageFault) => {

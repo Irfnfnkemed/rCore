@@ -70,10 +70,6 @@ impl MapArea {
         }
     }
 
-    pub fn get_end(&self) -> VirtPageNum {
-        self.vpn_end
-    }
-
     pub fn copy_data(&mut self, page_table: &mut PageTable, data: &[u8]) {
         assert_eq!(self.map_type, MapType::Framed);
         let mut start: usize = 0;
@@ -94,4 +90,8 @@ impl MapArea {
             current_vpn.next();
         }
     }
+
+    pub fn get_beg_vpn(&self) -> VirtPageNum { self.vpn_beg }
+
+    pub fn get_end_vpn(&self) -> VirtPageNum { self.vpn_end }
 }

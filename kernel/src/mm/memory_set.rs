@@ -61,6 +61,14 @@ impl MemorySet {
         self.push(MapArea::new(start_va, end_va, MapType::Framed, permission), None);
     }
 
+    pub fn remove_framed_area(&mut self, start_vpn: VirtPageNum) {
+        if let Some((idx, area)) = self.areas.iter_mut().enumerate()
+            .find(|(_, area)| area.get_beg_vpn() == start_vpn) {
+            area.unmap(&mut self.page_table);
+            self.areas.remove(idx);
+        }
+    }
+
     pub fn new_kernel() -> Self {
         let mut memory_set = Self::new_bare();
         // map trampoline
@@ -143,7 +151,7 @@ impl MemorySet {
                     MapType::Framed,
                     map_perm,
                 );
-                max_end_vpn = map_area.get_end();
+                max_end_vpn = map_area.get_end_vpn();
                 memory_set.push(
                     map_area,
                     Some(&elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize]),

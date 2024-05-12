@@ -20,9 +20,9 @@ mod console;
 mod sync;
 mod sbi;
 mod trap;
-mod batch;
 mod syscall;
 mod mm;
+mod task;
 
 global_asm!(include_str!("entry.asm"));
 
