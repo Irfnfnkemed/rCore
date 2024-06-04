@@ -9,13 +9,14 @@ use riscv::register::satp;
 use crate::mm::address::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 use crate::mm::area::{MapArea, MapPermission, MapType};
 use crate::mm::frame_allocator::{frame_alloc, FrameTracker, MEMORY_END};
-use crate::mm::page_table::{PageTable, PTEFlags};
+use crate::mm::page_table::{PageTable, PageTableEntry, PTEFlags};
 use crate::sync::safe_cell_single::SafeCellSingle;
 
 pub const TRAMPOLINE: usize = usize::MAX - 0x1000 + 1;
 pub const TRAP_CONTEXT: usize = usize::MAX - 0x2000 + 1;
 pub const UART_BASE_ADDRESS: usize = 0x10_000_000;
 pub const PAGE_SIZE: usize = 0x1000;
+pub const USER_STACK_SIZE: usize = 0x2000;
 
 pub const MMIO: &[(usize, usize)] = &[
     (0x0010_0000, 0x00_2000), // VIRT_TEST/RTC  in virt machine
@@ -67,6 +68,10 @@ impl MemorySet {
             area.unmap(&mut self.page_table);
             self.areas.remove(idx);
         }
+    }
+
+    pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
+        self.page_table.translate(vpn)
     }
 
     pub fn new_kernel() -> Self {
@@ -124,7 +129,7 @@ impl MemorySet {
         memory_set
     }
 
-    pub fn from_elf(elf_data: &[u8]) -> (Self, usize) {
+    pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
         let mut memory_set = Self::new_bare();
         // map trampoline
         memory_set.map_trampoline();
@@ -163,23 +168,23 @@ impl MemorySet {
         let mut user_stack_bottom: usize = max_end_va.into();
         // guard page
         user_stack_bottom += PAGE_SIZE;
-        // TODO: user stack
-        let user_stack_top = user_stack_bottom;
-        // let user_stack_top = user_stack_bottom + USER_STACK_SIZE;
-        // memory_set.push(MapArea::new(
-        //     user_stack_bottom.into(),
-        //     user_stack_top.into(),
-        //     MapType::Framed,
-        //     MapPermission::R | MapPermission::W | MapPermission::U,
-        // ), None);
-        // map TrapContext
+        let user_stack_top = user_stack_bottom + USER_STACK_SIZE;
+        memory_set.push(MapArea::new(
+            user_stack_bottom.into(),
+            user_stack_top.into(),
+            MapType::Framed,
+            MapPermission::R | MapPermission::W | MapPermission::U,
+        ), None);
+        //map TrapContext
         memory_set.push(MapArea::new(
             TRAP_CONTEXT.into(),
             TRAMPOLINE.into(),
             MapType::Framed,
             MapPermission::R | MapPermission::W,
         ), None);
-        (memory_set, elf.header.pt2.entry_point() as usize)
+        (memory_set,
+         user_stack_top,
+         elf.header.pt2.entry_point() as usize)
     }
 
     pub fn activate(&mut self) {
@@ -187,6 +192,10 @@ impl MemorySet {
             satp::write(self.page_table.token());
             asm!("sfence.vma");
         }
+    }
+
+    pub fn token(&self) -> usize {
+        self.page_table.token()
     }
 
     fn map_trampoline(&mut self) {

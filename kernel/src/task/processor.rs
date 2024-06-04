@@ -7,6 +7,7 @@ use crate::task::context::TaskContext;
 use crate::task::manager::fetch_task;
 use crate::task::switch::__switch;
 use crate::task::task::{TaskControlBlock, TaskStatus};
+use crate::trap::context::TrapContext;
 
 pub struct Processor {
     //The task currently executing on the current processor
@@ -32,6 +33,20 @@ lazy_static! {
     pub static ref PROCESSOR: SafeCellSingle<Processor> = unsafe { SafeCellSingle::new(Processor::new()) };
 }
 
+pub fn current_trap_cx() -> &'static mut TrapContext {
+    PROCESSOR.borrow_exclusive().current.as_ref().map(Arc::clone).unwrap()
+        .borrow_exclusive_inner().get_trap_cx_ref()
+}
+
+pub fn current_user_token() -> usize {
+    PROCESSOR.borrow_exclusive().current.as_ref().map(Arc::clone).unwrap()
+        .borrow_exclusive_inner().get_user_token()
+}
+
+pub fn take_current_task() -> Option<Arc<TaskControlBlock>> {
+    PROCESSOR.borrow_exclusive().current.take()
+}
+
 pub fn run_tasks() {
     loop {
         let mut processor = PROCESSOR.borrow_exclusive();
@@ -52,3 +67,13 @@ pub fn run_tasks() {
         }
     }
 }
+
+pub fn schedule(switched_task_cx_ptr: *mut TaskContext) {
+    let mut processor = PROCESSOR.borrow_exclusive();
+    let idle_task_cx_ptr = processor.get_idle_task_cx_ptr();
+    drop(processor);
+    unsafe {
+        __switch(switched_task_cx_ptr, idle_task_cx_ptr);
+    }
+}
+

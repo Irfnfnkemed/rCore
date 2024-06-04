@@ -43,7 +43,15 @@ impl PidAllocator {
 
 
 lazy_static! {
-   pub static ref PID_ALLOCATOR : SafeCellSingle<PidAllocator> = unsafe {
+    static ref PID_ALLOCATOR : SafeCellSingle<PidAllocator> = unsafe {
         SafeCellSingle::new(PidAllocator::new())
     };
+}
+
+pub fn pid_alloc() -> PidHandle {
+    PID_ALLOCATOR.borrow_exclusive().alloc()
+}
+
+pub fn pid_dealloc(pid: usize) {
+    PID_ALLOCATOR.borrow_exclusive().dealloc(pid);
 }

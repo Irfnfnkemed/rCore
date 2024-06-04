@@ -40,6 +40,6 @@ impl Drop for KernelStack {
         let (kernel_stack_bottom, _) = KernelStack::get_stack_pos(self.pid);
         KERNEL_SPACE
             .borrow_exclusive()
-            .remove_framed_area(VirtPageNum(kernel_stack_bottom));
+            .remove_framed_area(VirtPageNum::from(kernel_stack_bottom));
     }
 }
