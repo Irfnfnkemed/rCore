@@ -85,7 +85,6 @@ impl UartRegs {
         unsafe { *ptr }
     }
 
-
      fn write_reg(&self, id: usize, data: u8) {
         let ptr = self.regs[id].load(Ordering::Acquire);
         unsafe { ptr.write(data) };

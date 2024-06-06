@@ -50,12 +50,32 @@ impl MemorySet {
         }
     }
 
+    pub fn new_from_exist(obj: &Self) -> Self {
+        let mut memory_set = Self::new_bare();
+        memory_set.map_trampoline();
+        for area in obj.areas.iter() {
+            memory_set.push(MapArea::new_from_exist(area), None);
+            let mut vpn = area.get_beg_vpn();
+            let mut vpn_end = area.get_end_vpn();
+            while vpn != vpn_end {
+                let src_ppn = obj.translate(vpn).unwrap().ppn();
+                let dst_ppn = memory_set.translate(vpn).unwrap().ppn();
+                dst_ppn.get_bytes_array().copy_from_slice(src_ppn.get_bytes_array());
+            }
+        }
+        memory_set
+    }
+
     fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
         if let Some(data) = data {
             map_area.copy_data(&mut self.page_table, data);
         }
         self.areas.push(map_area);
+    }
+
+    pub fn recycle(&mut self) {
+        self.areas.clear();
     }
 
     pub fn insert_framed_area(&mut self, start_va: VirtAddr, end_va: VirtAddr, permission: MapPermission) {
@@ -182,9 +202,7 @@ impl MemorySet {
             MapType::Framed,
             MapPermission::R | MapPermission::W,
         ), None);
-        (memory_set,
-         user_stack_top,
-         elf.header.pt2.entry_point() as usize)
+        (memory_set, user_stack_top, elf.header.pt2.entry_point() as usize)
     }
 
     pub fn activate(&mut self) {

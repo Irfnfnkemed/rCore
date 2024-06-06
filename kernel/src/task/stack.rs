@@ -33,6 +33,10 @@ impl KernelStack {
         let bottom = top - KERNEL_STACK_SIZE;
         (top, bottom)
     }
+
+    pub fn get_top(&self) -> usize {
+        TRAMPOLINE - (KERNEL_STACK_SIZE + PAGE_SIZE) * (self.pid + 1) - PAGE_SIZE
+    }
 }
 
 impl Drop for KernelStack {

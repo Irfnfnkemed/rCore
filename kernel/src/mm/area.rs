@@ -37,8 +37,18 @@ impl MapArea {
             vpn_beg: start_va.floor(),
             vpn_end: end_va.ceil(),
             data_frames: Vec::new(),
-            map_type,
-            map_perm,
+            map_type: map_type,
+            map_perm: map_perm,
+        }
+    }
+
+    pub fn new_from_exist(obj: &Self) -> Self {
+        Self {
+            vpn_beg: obj.vpn_beg,
+            vpn_end: obj.vpn_end,
+            data_frames: Vec::new(),
+            map_type: obj.map_type,
+            map_perm: obj.map_perm,
         }
     }
 
@@ -78,10 +88,8 @@ impl MapArea {
         loop {
             let src = &data[start..len.min(start + PAGE_SIZE)];
             let dst = &mut page_table
-                .translate(current_vpn)
-                .unwrap()
-                .ppn()
-                .get_bytes_array()[..src.len()];
+                .translate(current_vpn).unwrap()
+                .ppn().get_bytes_array()[..src.len()];
             dst.copy_from_slice(src);
             start += PAGE_SIZE;
             if start >= len {

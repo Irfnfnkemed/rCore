@@ -23,6 +23,7 @@ mod trap;
 mod syscall;
 mod mm;
 mod task;
+mod loader;
 
 global_asm!(include_str!("entry.asm"));
 

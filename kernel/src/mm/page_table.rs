@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 
 use bitflags::*;
 
-use crate::mm::address::{PhysPageNum, VirtPageNum};
+use crate::mm::address::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 use crate::mm::frame_allocator::{frame_alloc, FrameTracker};
 
 const VPN_PTE_BITS: usize = 9;
@@ -81,6 +81,13 @@ impl PageTable {
         }
     }
 
+    pub fn new_tmp(satp: usize) -> Self { // temp page_table (find mem by software method)
+        Self {
+            root_ppn: PhysPageNum::from(satp),
+            frames: Vec::new(),
+        }
+    }
+
     pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
         let pte = self.create_pte(vpn).unwrap();
         *pte = PageTableEntry::new(ppn, flags | PTEFlags::V);
@@ -144,11 +151,39 @@ impl PageTable {
         return None;
     }
 
-    pub fn token(&self) -> usize {
+    pub fn token(&self) -> usize { // satp token
         8usize << 60 | (self.root_ppn.0)
     }
 
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
         self.find_pte(vpn).map(|pte| *pte)
     }
+
+    pub fn translate_va(&self, va: VirtAddr) -> Option<PhysAddr> {
+        self.find_pte(va.floor()).map(|pte| {
+            let pa_beg: PhysAddr = pte.ppn().into();
+            (pa_beg.0 + va.page_offset()).into()
+        })
+    }
+}
+
+
+pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&'static mut [u8]> {
+    let tmp_page_table = PageTable::new_tmp(token);
+    let mut va = VirtAddr::from(ptr as usize);
+    let end_va = VirtAddr::from(ptr as usize + len);
+    let mut vec = Vec::new();
+    while va < end_va {
+        let mut vpn = va.floor();
+        let ppn = tmp_page_table.translate(vpn).unwrap().ppn();
+        vpn.next();
+        let va_end_page = VirtAddr::from(vpn).min(end_va);
+        if va_end_page.page_offset() == 0 {
+            vec.push(&mut ppn.get_bytes_array()[va.page_offset()..]);
+        } else {
+            vec.push(&mut ppn.get_bytes_array()[va.page_offset()..va_end_page.page_offset()]);
+        }
+        va = va_end_page;
+    }
+    vec
 }

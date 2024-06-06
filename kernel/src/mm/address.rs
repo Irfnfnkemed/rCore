@@ -23,12 +23,31 @@ impl PhysAddr {
     pub fn page_offset(&self) -> usize { self.0 & (PAGE_SIZE - 1) }
     pub fn floor(&self) -> PhysPageNum { PhysPageNum(self.0 / PAGE_SIZE) }
     pub fn ceil(&self) -> PhysPageNum { PhysPageNum((self.0 + PAGE_SIZE - 1) / PAGE_SIZE) }
+    pub fn get_mut<T>(&self) -> &'static mut T {
+        unsafe { (self.0 as *mut T).as_mut().unwrap() }
+    }
 }
 
 impl VirtAddr {
     pub fn page_offset(&self) -> usize { self.0 & (PAGE_SIZE - 1) }
     pub fn floor(&self) -> VirtPageNum { VirtPageNum(self.0 / PAGE_SIZE) }
     pub fn ceil(&self) -> VirtPageNum { VirtPageNum((self.0 + PAGE_SIZE - 1) / PAGE_SIZE) }
+}
+
+impl PhysPageNum {
+    pub fn get_pte_array(&self) -> &'static mut [PageTableEntry] {
+        let pa: PhysAddr = self.clone().into();
+        unsafe {
+            core::slice::from_raw_parts_mut(pa.0 as *mut PageTableEntry, 512)
+        }
+    }
+
+    pub fn get_bytes_array(&self) -> &'static mut [u8] {
+        let pa: PhysAddr = self.clone().into();
+        unsafe {
+            core::slice::from_raw_parts_mut(pa.0 as *mut u8, PAGE_SIZE)
+        }
+    }
 }
 
 impl VirtPageNum {
@@ -89,18 +108,6 @@ impl From<VirtPageNum> for VirtAddr {
     fn from(vir_num: VirtPageNum) -> Self { Self(vir_num.0 << PAGE_SIZE_BITS) }
 }
 
-impl PhysPageNum {
-    pub fn get_pte_array(&self) -> &'static mut [PageTableEntry] {
-        let pa: PhysAddr = self.clone().into();
-        unsafe {
-            core::slice::from_raw_parts_mut(pa.0 as *mut PageTableEntry, 512)
-        }
-    }
 
-    pub fn get_bytes_array(&self) -> &'static mut [u8] {
-        let pa: PhysAddr = self.clone().into();
-        unsafe {
-            core::slice::from_raw_parts_mut(pa.0 as *mut u8, PAGE_SIZE)
-        }
-    }
-}
+
+

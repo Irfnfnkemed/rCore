@@ -8,7 +8,7 @@ use riscv::register::{
 
 use crate::mm::memory_set::{TRAMPOLINE, TRAP_CONTEXT};
 use crate::syscall::syscall;
-use crate::task::{current_trap_cx, current_user_token};
+use crate::task::{current_trap_cx, current_user_token, exit_current_and_run_next};
 use crate::trap::context::TrapContext;
 
 pub(crate) mod context;
@@ -20,22 +20,38 @@ global_asm!(include_str!("trap.S"));
 pub fn trap_handler() -> ! {
     let scause = scause::read();
     let stval = stval::read();
-    let cx = current_trap_cx();
+
     unsafe {
         stvec::write(trap_from_kernel as usize, TrapMode::Direct); // if trap in kernel
     }
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
+            let cx = current_trap_cx();
             cx.sepc += 4;
-            cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12],
+            let return_var = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12],
                 cx.x[13], cx.x[14], cx.x[15], cx.x[16]]) as usize;
+            let cx = current_trap_cx(); // trap_cx may change after sys_call
+            cx.x[10] = return_var;
         }
         Trap::Exception(Exception::StoreFault) |
-        Trap::Exception(Exception::StorePageFault) => {
-            println!("[kernel] PageFault in application, kernel killed it.");
+        Trap::Exception(Exception::StorePageFault) |
+        Trap::Exception(Exception::InstructionFault) |
+        Trap::Exception(Exception::InstructionPageFault) |
+        Trap::Exception(Exception::LoadFault) |
+        Trap::Exception(Exception::LoadPageFault) => {
+            println!(
+                "[kernel] {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, core dumped.",
+                scause.cause(),
+                stval,
+                current_trap_cx().sepc,
+            );
+            // page fault exit code
+            exit_current_and_run_next(-2);
         }
         Trap::Exception(Exception::IllegalInstruction) => {
-            println!("[kernel] IllegalInstruction in application, kernel killed it.");
+            println!("[kernel] IllegalInstruction in application, core dumped.");
+            // illegal instruction exit code
+            exit_current_and_run_next(-3);
         }
         _ => {
             panic!("Unsupported trap {:?}, stval = {:#x}!", scause.cause(), stval);

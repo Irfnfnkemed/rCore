@@ -2,7 +2,7 @@ use crate::mm::memory_set::{KERNEL_SPACE, remap_test};
 
 pub mod buddy;
 pub(crate) mod address;
-mod page_table;
+pub mod page_table;
 pub mod frame_allocator;
 pub mod memory_set;
 pub mod area;

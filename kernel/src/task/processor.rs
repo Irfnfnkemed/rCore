@@ -43,8 +43,12 @@ pub fn current_user_token() -> usize {
         .borrow_exclusive_inner().get_user_token()
 }
 
-pub fn take_current_task() -> Option<Arc<TaskControlBlock>> {
+pub fn take_current_task() -> Option<Arc<TaskControlBlock>> { // move cur_task
     PROCESSOR.borrow_exclusive().current.take()
+}
+
+pub fn current_task() -> Option<Arc<TaskControlBlock>> { // copy cur_task
+    PROCESSOR.borrow_exclusive().current.as_ref().map(Arc::clone)
 }
 
 pub fn run_tasks() {
