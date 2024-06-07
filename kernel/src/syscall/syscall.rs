@@ -1,7 +1,7 @@
 use alloc::string::String;
 use core::slice::SliceIndex;
-use crate::loader::get_app_data_by_name;
 
+use crate::loader::get_app_data_by_name;
 use crate::mm::address::VirtAddr;
 use crate::mm::page_table::{PageTable, translated_byte_buffer};
 use crate::task::{add_task, current_task, current_user_token, exit_current_and_run_next};
@@ -16,7 +16,7 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
                 print!("{}", core::str::from_utf8(buffer).unwrap());
             }
             len as isize
-        },
+        }
         _ => {
             panic!("Unsupported fd in sys_write!");
         }
@@ -62,4 +62,9 @@ pub fn sys_exec(path: *const u8) -> isize {
     } else {
         -1
     }
+}
+
+pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
+    let cur_task = current_task().unwrap();
+    cur_task.waitpid(pid, exit_code_ptr)
 }

@@ -4,6 +4,7 @@ use core::cell::RefMut;
 
 use crate::mm::address::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 use crate::mm::memory_set::{KERNEL_SPACE, MemorySet, TRAP_CONTEXT};
+use crate::mm::page_table::translated_refmut;
 use crate::sync::safe_cell_single::SafeCellSingle;
 use crate::task::context;
 use crate::task::context::TaskContext;
@@ -137,5 +138,27 @@ impl TaskControlBlock {
             self.kernel_stack.get_top(),
             trap_handler as usize,
         );
+    }
+
+    pub fn waitpid(self: &Arc<TaskControlBlock>, pid: isize, exit_code_ptr: *mut i32) -> isize {
+        let mut inner = self.borrow_exclusive_inner();
+        if !inner.children.iter().
+            any(|son| { pid == -1 || son.pid.0 == pid as usize }) {
+            -1;
+        }
+        let pair = inner.children.iter().enumerate().
+            find(|(_, son)| {
+                (pid == -1 || son.pid.0 == pid as usize) &&
+                    son.borrow_exclusive_inner().task_status == TaskStatus::Zombie
+            });
+        if let Some((index, _)) = pair {
+            let mut child = inner.children.remove(index);
+            assert_eq!(Arc::strong_count(&child), 1); // confirm, child-proc should be only owned here
+            let found_pid = child.pid.0 as isize;
+            let exit_code = child.borrow_exclusive_inner().exit_code;
+            *translated_refmut(inner.memory_set.token(), exit_code_ptr) = exit_code; // write to the current user-space
+            found_pid;
+        }
+        -2
     }
 }
