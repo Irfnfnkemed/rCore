@@ -26,13 +26,16 @@ mod task;
 mod loader;
 
 global_asm!(include_str!("entry.asm"));
-
+global_asm!(include_str!("link_app.S"));
 
 #[no_mangle]
 pub fn rust_main() -> ! {
     clear_bss();
     init_mm();
     println!("Hello, world!");
+    task::add_initproc();
+    println!("after initproc!");
+    loader::list_apps();
     panic!("Shutdown machine!");
 }
 

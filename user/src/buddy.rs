@@ -36,7 +36,7 @@ impl Allocator {
     pub const fn empty() -> Self {
         let free_head = [-1i16; BLOCK_LEVEL];
         let link_table = [LinkNode { prev: 0, next: 0, level: 0, free: false }; TABLE_SIZE];
-        let mut allocator = Allocator {
+        let allocator = Allocator {
             free_head: free_head,
             link_table: link_table,
             heap_beg_addr: 0,
@@ -91,7 +91,7 @@ impl Allocator {
         while now_level > level {
             now_level -= 1;
             self.push(index, now_level);
-            index += (1 << now_level);
+            index += 1 << now_level;
         }
         return self.get_address(index as i16) as *mut u8;
     }
