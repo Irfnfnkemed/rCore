@@ -15,7 +15,7 @@ pub struct KernelStack {
 impl KernelStack {
     pub fn new(pid_handle: &PidHandle) -> Self {
         let pid = pid_handle.0;
-        let (kernel_stack_bottom, kernel_stack_top) = KernelStack::get_stack_pos(pid);
+        let (kernel_stack_top, kernel_stack_bottom) = KernelStack::get_stack_pos(pid);
         KERNEL_SPACE
             .borrow_exclusive()
             .insert_framed_area(
@@ -41,7 +41,7 @@ impl KernelStack {
 
 impl Drop for KernelStack {
     fn drop(&mut self) {
-        let (kernel_stack_bottom, _) = KernelStack::get_stack_pos(self.pid);
+        let (_, kernel_stack_bottom) = KernelStack::get_stack_pos(self.pid);
         KERNEL_SPACE
             .borrow_exclusive()
             .remove_framed_area(VirtPageNum::from(kernel_stack_bottom));

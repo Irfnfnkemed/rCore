@@ -36,6 +36,8 @@ pub fn rust_main() -> ! {
     task::add_initproc();
     println!("after initproc!");
     loader::list_apps();
+    task::run_tasks();
+    task::suspend_current_and_run_next();
     panic!("Shutdown machine!");
 }
 

@@ -111,7 +111,11 @@ impl PageTable {
                 return None;
             }
             if i == 2 {
-                return if pte.is_leaf() { Some(pte) } else { None }; // leaf page is (in)valid
+                return if pte.is_leaf() {
+                    Some(pte)
+                } else {
+                    None
+                }; // leaf page is (in)valid
             } else {
                 if pte.is_leaf() {
                     return None; // TODO: huge page

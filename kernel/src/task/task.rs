@@ -39,7 +39,8 @@ pub enum TaskStatus {
 
 impl TaskControlBlockInner {
     pub fn get_trap_cx_ref(&self) -> &'static mut TrapContext {
-        unsafe { (self.trap_cx_ppn.0 as *mut TrapContext).as_mut().unwrap() }
+        let pa: PhysAddr = self.trap_cx_ppn.into();
+        unsafe { (pa.0 as *mut TrapContext).as_mut().unwrap() }
     }
 
     pub fn get_user_token(&self) -> usize {
@@ -57,7 +58,7 @@ impl TaskControlBlock {
     pub fn new(elf_data: &[u8]) -> Self {
         // memory_set with elf program headers/trampoline/trap context/user stack
         let (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data);
-        let trap_cx_ppn = memory_set.translate(VirtPageNum::from(TRAP_CONTEXT)).unwrap().ppn();
+        let trap_cx_ppn = memory_set.translate(VirtAddr::from(TRAP_CONTEXT).into()).unwrap().ppn();
         let pid_handle = pid_alloc();
         let kernel_stack = KernelStack::new(&pid_handle);
         let (kernel_stack_top, _) = KernelStack::get_stack_pos(pid_handle.0);

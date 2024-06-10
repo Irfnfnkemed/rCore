@@ -61,6 +61,7 @@ impl MemorySet {
                 let src_ppn = obj.translate(vpn).unwrap().ppn();
                 let dst_ppn = memory_set.translate(vpn).unwrap().ppn();
                 dst_ppn.get_bytes_array().copy_from_slice(src_ppn.get_bytes_array());
+                vpn.next();
             }
         }
         memory_set
@@ -196,6 +197,7 @@ impl MemorySet {
             MapPermission::R | MapPermission::W | MapPermission::U,
         ), None);
         //map TrapContext
+        let t: VirtAddr = TRAP_CONTEXT.into();
         memory_set.push(MapArea::new(
             TRAP_CONTEXT.into(),
             TRAMPOLINE.into(),

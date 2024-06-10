@@ -9,8 +9,7 @@ use crate::syscall::{sys_exec, sys_exit, sys_fork, sys_waitpid, sys_write};
 mod buddy;
 mod syscall;
 mod lang_items;
-mod console;
-pub mod sbi;
+pub mod console;
 mod sync;
 
 const USER_HEAP_SIZE: usize = 16384;

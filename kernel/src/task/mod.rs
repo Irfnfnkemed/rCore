@@ -3,7 +3,7 @@ use alloc::sync::{Arc, Weak};
 use lazy_static::lazy_static;
 
 pub use manager::add_task;
-pub use processor::{current_task, current_trap_cx, current_user_token};
+pub use processor::{current_task, current_trap_cx, current_user_token, run_tasks};
 
 use crate::loader::get_app_data_by_name;
 use crate::task::context::TaskContext;

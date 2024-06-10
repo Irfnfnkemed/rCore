@@ -18,6 +18,7 @@ global_asm!(include_str!("trap.S"));
 
 #[no_mangle]
 pub fn trap_handler() -> ! {
+   // println!("[trap] Begin to trap in.");
     let scause = scause::read();
     let stval = stval::read();
 
@@ -62,6 +63,7 @@ pub fn trap_handler() -> ! {
 
 #[no_mangle]
 pub fn trap_return() -> ! {
+   // println!("[trap] Begin to trap out.");
     unsafe {
         stvec::write(TRAMPOLINE as usize, TrapMode::Direct);
     }
@@ -82,10 +84,10 @@ pub fn trap_return() -> ! {
         options(noreturn)
         );
     }
-    panic!("Unreachable in back_to_user!");
+    panic!("[trap] Unreachable in back_to_user!");
 }
 
 #[no_mangle]
 pub fn trap_from_kernel() -> ! {
-    panic!("a trap from kernel!");
+    panic!("[trap] A trap from kernel!");
 }
