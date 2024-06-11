@@ -4,7 +4,7 @@ use core::slice::SliceIndex;
 use crate::loader::get_app_data_by_name;
 use crate::mm::address::VirtAddr;
 use crate::mm::page_table::{PageTable, translated_byte_buffer};
-use crate::task::{add_task, current_task, current_user_token, exit_current_and_run_next};
+use crate::task::{add_task, current_task, current_user_token, exit_current_and_run_next, suspend_current_and_run_next};
 
 const FD_STDOUT: usize = 1;
 
@@ -25,7 +25,7 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
 
 
 pub fn sys_exit(exit_code: i32) -> ! {
-    println!("[kernel] Application exited with code {}", exit_code);
+    println!("[kernel] Application exited with code {}, pid = {}", exit_code, current_task().unwrap().pid.0);
     exit_current_and_run_next(exit_code);
     panic!("[kernel] Unreachable area in sys_exit!")
 }
@@ -34,7 +34,7 @@ pub fn sys_fork() -> isize {
     let current_task = current_task().unwrap();
     let new_task = current_task.fork();
     let new_pid = new_task.pid.0;
-    print!("[kernel] Application forked (parent pid ={}, child pid = {})", current_task.pid.0, new_pid);
+    println!("[kernel] Application forked (parent pid = {}, child pid = {})", current_task.pid.0, new_pid);
     let trap_cx = new_task.borrow_exclusive_inner().get_trap_cx();
     trap_cx.x[10] = 0;  // a0 =0
     add_task(new_task);
@@ -57,7 +57,7 @@ pub fn sys_exec(path: *const u8) -> isize {
             va += 1;
         }
     }
-    print!("[kernel] Application executed (pid = {}, path = {})", cur_task.pid.0, path_str.as_str());
+    println!("[kernel] Application executed (pid = {}, path = {})", cur_task.pid.0, path_str.as_str());
     if let Some(data) = get_app_data_by_name(path_str.as_str()) {
         cur_task.exec(data);
         0
@@ -69,4 +69,9 @@ pub fn sys_exec(path: *const u8) -> isize {
 pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
     let cur_task = current_task().unwrap();
     cur_task.waitpid(pid, exit_code_ptr)
+}
+
+pub fn sys_yield() -> isize {
+    suspend_current_and_run_next();
+    0
 }

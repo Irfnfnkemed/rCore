@@ -76,6 +76,7 @@ impl MemorySet {
     }
 
     pub fn recycle(&mut self) {
+        self.page_table.recycle();
         self.areas.clear();
     }
 
@@ -133,6 +134,12 @@ impl MemorySet {
         memory_set.push(MapArea::new(
             UART_BASE_ADDRESS.into(),
             (UART_BASE_ADDRESS + 0x6).into(),
+            MapType::Identical,
+            MapPermission::R | MapPermission::W,
+        ), None);
+        memory_set.push(MapArea::new(
+            0x0200bff8.into(),
+            (0x0200bff8 + PAGE_SIZE).into(),
             MapType::Identical,
             MapPermission::R | MapPermission::W,
         ), None);

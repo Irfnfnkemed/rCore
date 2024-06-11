@@ -158,8 +158,9 @@ impl TaskControlBlock {
             let found_pid = child.pid.0 as isize;
             let exit_code = child.borrow_exclusive_inner().exit_code;
             *translated_refmut(inner.memory_set.token(), exit_code_ptr) = exit_code; // write to the current user-space
-            found_pid;
+            found_pid as isize
+        } else {
+            -2
         }
-        -2
     }
 }

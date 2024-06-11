@@ -1,14 +1,12 @@
 use core::arch::{asm, global_asm};
 
-use riscv::register::{
-    mtvec::TrapMode,
-    scause::{self, Exception, Trap},
-    stval, stvec,
-};
+use riscv::register::{mtvec::TrapMode, scause::{self, Exception, Trap}, sip, stval, stvec};
+use riscv::register::scause::Interrupt;
 
 use crate::mm::memory_set::{TRAMPOLINE, TRAP_CONTEXT};
 use crate::syscall::syscall;
-use crate::task::{current_trap_cx, current_user_token, exit_current_and_run_next};
+use crate::task::{current_trap_cx, current_user_token, exit_current_and_run_next, suspend_current_and_run_next};
+use crate::timer::get_time;
 use crate::trap::context::TrapContext;
 
 pub(crate) mod context;
@@ -18,7 +16,7 @@ global_asm!(include_str!("trap.S"));
 
 #[no_mangle]
 pub fn trap_handler() -> ! {
-   // println!("[trap] Begin to trap in.");
+    //println!("[trap] Begin to trap in.");
     let scause = scause::read();
     let stval = stval::read();
 
@@ -33,6 +31,14 @@ pub fn trap_handler() -> ! {
                 cx.x[13], cx.x[14], cx.x[15], cx.x[16]]) as usize;
             let cx = current_trap_cx(); // trap_cx may change after sys_call
             cx.x[10] = return_var;
+        }
+        Trap::Interrupt(Interrupt::SupervisorSoft) => {
+            //println!("[timer] interrupt.");
+            let sip = sip::read().bits();
+            unsafe {
+                asm! {"csrw sip, {sip}", sip = in(reg) sip ^ 2}; // clear the interrupt status of sip
+            }
+            suspend_current_and_run_next();
         }
         Trap::Exception(Exception::StoreFault) |
         Trap::Exception(Exception::StorePageFault) |
@@ -63,7 +69,7 @@ pub fn trap_handler() -> ! {
 
 #[no_mangle]
 pub fn trap_return() -> ! {
-   // println!("[trap] Begin to trap out.");
+    // println!("[trap] Begin to trap out.");
     unsafe {
         stvec::write(TRAMPOLINE as usize, TrapMode::Direct);
     }

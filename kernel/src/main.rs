@@ -9,10 +9,11 @@ extern crate bitflags;
 
 use core::arch::{asm, global_asm};
 
-use riscv::register::{mepc, mstatus, pmpaddr0, pmpcfg0, satp, sie};
+use riscv::register::{mepc, mhartid, mie, mstatus, mtvec, pmpaddr0, pmpcfg0, satp, sie};
 
 use crate::mm::init_mm;
 use crate::syscall::syscall;
+use crate::timer::{get_time, init_timer, TIME_INTERVAL};
 
 mod lang_items;
 #[macro_use]
@@ -24,6 +25,7 @@ mod syscall;
 mod mm;
 mod task;
 mod loader;
+mod timer;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
@@ -37,7 +39,6 @@ pub fn rust_main() -> ! {
     println!("after initproc!");
     loader::list_apps();
     task::run_tasks();
-    task::suspend_current_and_run_next();
     panic!("Shutdown machine!");
 }
 
@@ -58,7 +59,7 @@ unsafe fn init() -> ! {
     sie::set_stimer();
     pmpaddr0::write(0x3fffffffffffff);
     pmpcfg0::write(0xf);
-    //TODO:时钟中断
+    init_timer();
     asm!(
     "mret",
     options(noreturn),

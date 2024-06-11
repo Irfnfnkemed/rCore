@@ -75,6 +75,7 @@ impl PageTableEntry {
 impl PageTable {
     pub fn new() -> Self {
         let frame = frame_alloc().unwrap();
+        PageTable::empty_init(frame.ppn);
         PageTable {
             root_ppn: frame.ppn,
             frames: vec![frame],
@@ -136,14 +137,11 @@ impl PageTable {
         for i in 0..3 {
             let pte = &mut ppn.get_pte_array()[index[i]];
             if i == 2 {
-                return if pte.is_valid() {
-                    None // the vpn has been mapped before
-                } else {
-                    Some(pte)
-                };
+                return Some(pte);
             } else {
                 if !pte.is_valid() {
                     let frame = frame_alloc().unwrap();
+                    PageTable::empty_init(frame.ppn);
                     *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
                     self.frames.push(frame);
                 } else if pte.is_leaf() {
@@ -168,6 +166,17 @@ impl PageTable {
             let pa_beg: PhysAddr = pte.ppn().into();
             (pa_beg.0 + va.page_offset()).into()
         })
+    }
+
+    pub fn recycle(&mut self) {
+        self.frames.clear();
+    }
+
+    pub fn empty_init(ppn: PhysPageNum) {
+        let pte_list = &mut ppn.get_pte_array();
+        for pte in pte_list.iter_mut() {
+            *pte = PageTableEntry::empty();
+        }
     }
 }
 
