@@ -5,7 +5,7 @@ use riscv::register::scause::Interrupt;
 
 use crate::mm::memory_set::{TRAMPOLINE, TRAP_CONTEXT};
 use crate::syscall::syscall;
-use crate::task::{current_trap_cx, current_user_token, exit_current_and_run_next, suspend_current_and_run_next};
+use crate::task::{current_task, current_trap_cx, current_user_token, exit_current_and_run_next, is_fixed, suspend_current_and_run_next};
 use crate::timer::get_time;
 use crate::trap::context::TrapContext;
 
@@ -34,11 +34,13 @@ pub fn trap_handler() -> ! {
         }
         Trap::Interrupt(Interrupt::SupervisorSoft) => {
             //println!("[timer] interrupt.");
-            let sip = sip::read().bits();
-            unsafe {
-                asm! {"csrw sip, {sip}", sip = in(reg) sip ^ 2}; // clear the interrupt status of sip
+            if !is_fixed() {
+                let sip = sip::read().bits();
+                unsafe {
+                    asm! {"csrw sip, {sip}", sip = in(reg) sip ^ 2}; // clear the interrupt status of sip
+                }
+                suspend_current_and_run_next();
             }
-            suspend_current_and_run_next();
         }
         Trap::Exception(Exception::StoreFault) |
         Trap::Exception(Exception::StorePageFault) |
@@ -46,9 +48,10 @@ pub fn trap_handler() -> ! {
         Trap::Exception(Exception::InstructionPageFault) |
         Trap::Exception(Exception::LoadFault) |
         Trap::Exception(Exception::LoadPageFault) => {
+            let t = current_task().unwrap().pid;
             println!(
-                "[kernel] {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, core dumped.",
-                scause.cause(),
+                "[kernel] {:?} in application{}, bad addr = {:#x}, bad instruction = {:#x}, core dumped.",
+                scause.cause(), t,
                 stval,
                 current_trap_cx().sepc,
             );
@@ -69,7 +72,7 @@ pub fn trap_handler() -> ! {
 
 #[no_mangle]
 pub fn trap_return() -> ! {
-    // println!("[trap] Begin to trap out.");
+    //println!("[trap] Begin to trap out.");
     unsafe {
         stvec::write(TRAMPOLINE as usize, TrapMode::Direct);
     }
@@ -95,5 +98,7 @@ pub fn trap_return() -> ! {
 
 #[no_mangle]
 pub fn trap_from_kernel() -> ! {
+    let scause = scause::read();
+    panic!("{:?}", scause.cause());
     panic!("[trap] A trap from kernel!");
 }

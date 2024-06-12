@@ -2,7 +2,7 @@ use core::arch::global_asm;
 
 use riscv::register::{mhartid, mie, mscratch, mstatus, mtvec};
 
-pub const TIME_INTERVAL: usize = 10000;
+pub const TIME_INTERVAL: usize = 1000000;
 
 global_asm!(include_str!("time_handler.S"));
 

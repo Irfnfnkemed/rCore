@@ -25,7 +25,7 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
 
 
 pub fn sys_exit(exit_code: i32) -> ! {
-    println!("[kernel] Application exited with code {}, pid = {}", exit_code, current_task().unwrap().pid.0);
+    println!("[kernel] Application exited with code {}, pid = {}", exit_code, current_task().unwrap().pid);
     exit_current_and_run_next(exit_code);
     panic!("[kernel] Unreachable area in sys_exit!")
 }
@@ -33,8 +33,8 @@ pub fn sys_exit(exit_code: i32) -> ! {
 pub fn sys_fork() -> isize {
     let current_task = current_task().unwrap();
     let new_task = current_task.fork();
-    let new_pid = new_task.pid.0;
-    println!("[kernel] Application forked (parent pid = {}, child pid = {})", current_task.pid.0, new_pid);
+    let new_pid = new_task.pid;
+    println!("[kernel] Application forked (parent pid = {}, child pid = {})", current_task.pid, new_pid);
     let trap_cx = new_task.borrow_exclusive_inner().get_trap_cx();
     trap_cx.x[10] = 0;  // a0 =0
     add_task(new_task);
@@ -57,7 +57,7 @@ pub fn sys_exec(path: *const u8) -> isize {
             va += 1;
         }
     }
-    println!("[kernel] Application executed (pid = {}, path = {})", cur_task.pid.0, path_str.as_str());
+    println!("[kernel] Application executed (pid = {}, path = {})", cur_task.pid, path_str.as_str());
     if let Some(data) = get_app_data_by_name(path_str.as_str()) {
         cur_task.exec(data);
         0

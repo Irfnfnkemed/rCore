@@ -1,7 +1,6 @@
 use crate::mm::address::{VirtAddr, VirtPageNum};
 use crate::mm::area::MapPermission;
 use crate::mm::memory_set::KERNEL_SPACE;
-use crate::task::pid::PidHandle;
 
 pub const TRAMPOLINE: usize = usize::MAX - 0x1000 + 1;
 pub const PAGE_SIZE: usize = 0x1000;
@@ -13,8 +12,7 @@ pub struct KernelStack {
 
 
 impl KernelStack {
-    pub fn new(pid_handle: &PidHandle) -> Self {
-        let pid = pid_handle.0;
+    pub fn new(pid: usize) -> Self {
         let (kernel_stack_top, kernel_stack_bottom) = KernelStack::get_stack_pos(pid);
         KERNEL_SPACE
             .borrow_exclusive()
@@ -24,7 +22,7 @@ impl KernelStack {
                 MapPermission::R | MapPermission::W,
             );
         KernelStack {
-            pid: pid_handle.0,
+            pid: pid,
         }
     }
 

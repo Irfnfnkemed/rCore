@@ -8,6 +8,7 @@ use crate::sync::safe_cell_single;
 use crate::sync::safe_cell_single::SafeCellSingle;
 
 pub const MEMORY_END: usize = 0x8800_0000;
+pub const BUFFER_BEG: usize = 0x87E0_0000;
 
 trait FrameAllocator {
     fn new() -> Self;
@@ -95,7 +96,7 @@ pub fn init_frame_allocator() {
     }
     FRAME_ALLOCATOR
         .borrow_exclusive()
-        .init(PhysAddr::from(ekernel as usize).ceil(), PhysAddr::from(MEMORY_END).floor());
+        .init(PhysAddr::from(ekernel as usize).ceil(), PhysAddr::from(BUFFER_BEG).floor());
 }
 
 pub fn frame_alloc() -> Option<FrameTracker> {

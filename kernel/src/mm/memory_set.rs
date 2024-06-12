@@ -8,18 +8,20 @@ use riscv::register::satp;
 
 use crate::mm::address::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 use crate::mm::area::{MapArea, MapPermission, MapType};
-use crate::mm::frame_allocator::{frame_alloc, FrameTracker, MEMORY_END};
+use crate::mm::frame_allocator::{BUFFER_BEG, frame_alloc, FrameTracker, MEMORY_END};
 use crate::mm::page_table::{PageTable, PageTableEntry, PTEFlags};
 use crate::sync::safe_cell_single::SafeCellSingle;
 
 pub const TRAMPOLINE: usize = usize::MAX - 0x1000 + 1;
 pub const TRAP_CONTEXT: usize = usize::MAX - 0x2000 + 1;
+pub const BUFFER: usize = usize::MAX - 0x3000 + 1;
 pub const UART_BASE_ADDRESS: usize = 0x10_000_000;
 pub const PAGE_SIZE: usize = 0x1000;
 pub const USER_STACK_SIZE: usize = 0x2000;
 
 pub const MMIO: &[(usize, usize)] = &[
     (0x0010_0000, 0x00_2000), // VIRT_TEST/RTC  in virt machine
+    (0x0200bff8, PAGE_SIZE), // mtime/mtimecmp
 ];
 
 extern "C" {
@@ -130,7 +132,7 @@ impl MemorySet {
             MEMORY_END.into(),
             MapType::Identical,
             MapPermission::R | MapPermission::W,
-        ), None);
+        ), None);// BUFFER_BEG-MEMORY_END: shared memory between kernel and user
         memory_set.push(MapArea::new(
             UART_BASE_ADDRESS.into(),
             (UART_BASE_ADDRESS + 0x6).into(),
@@ -204,7 +206,6 @@ impl MemorySet {
             MapPermission::R | MapPermission::W | MapPermission::U,
         ), None);
         //map TrapContext
-        let t: VirtAddr = TRAP_CONTEXT.into();
         memory_set.push(MapArea::new(
             TRAP_CONTEXT.into(),
             TRAMPOLINE.into(),
@@ -231,6 +232,12 @@ impl MemorySet {
             PhysAddr::from(strampoline as usize).into(),
             PTEFlags::R | PTEFlags::X,
         );
+    }
+
+    pub fn map_buffer_user(&mut self, pid: usize) {
+        let vpn = VirtAddr::from(BUFFER).into();
+        let ppn = PhysAddr::from(BUFFER_BEG + pid * PAGE_SIZE).into();
+        self.page_table.map(vpn, ppn, PTEFlags::U | PTEFlags::R | PTEFlags::W);
     }
 }
 

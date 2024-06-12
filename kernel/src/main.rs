@@ -35,7 +35,7 @@ pub fn rust_main() -> ! {
     clear_bss();
     init_mm();
     println!("Hello, world!");
-    task::add_initproc();
+    task::init_proc();
     println!("after initproc!");
     loader::list_apps();
     task::run_tasks();
