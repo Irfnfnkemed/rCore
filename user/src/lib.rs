@@ -10,9 +10,9 @@ mod buddy;
 mod syscall;
 mod lang_items;
 pub mod console;
-mod sync;
+pub mod sync;
 
-const USER_HEAP_SIZE: usize = 16384;
+const USER_HEAP_SIZE: usize = 0x4000;
 
 static mut HEAP_SPACE: [u8; USER_HEAP_SIZE] = [0; USER_HEAP_SIZE];
 

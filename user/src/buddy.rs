@@ -2,10 +2,10 @@ use core::alloc::{GlobalAlloc, Layout};
 use core::cmp::{max, min};
 use core::ptr::null_mut;
 
-pub const BLOCK_UNIT_SIZE: usize = 0x1000;
+pub const BLOCK_UNIT_SIZE: usize = 0x10;
 pub const BLOCK_LEVEL: usize = 11;
 pub const TABLE_SIZE: usize = 1024;
-pub const KERNEL_HEAP_SIZE: usize = 0x40_0000;
+const USER_HEAP_SIZE: usize = 0x4000;
 
 #[derive(Copy, Clone)]
 struct LinkNode {
@@ -150,8 +150,8 @@ unsafe impl GlobalAlloc for AllocatorWrap {
     unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
         let alloctor = &mut *(self.allocator as *mut Allocator);
         if alloctor.heap_beg_addr > _ptr as usize ||
-            alloctor.heap_beg_addr + KERNEL_HEAP_SIZE <= _ptr as usize {
-            panic!("[kernel]: Invalid address to dealloc.");
+            alloctor.heap_beg_addr + USER_HEAP_SIZE <= _ptr as usize {
+            panic!("[user]: Invalid address to dealloc.");
         }
         let size = max(max(_layout.size().next_power_of_two(), BLOCK_UNIT_SIZE), _layout.align());
         alloctor.merge(_ptr as usize, (size / BLOCK_UNIT_SIZE).trailing_zeros() as usize);

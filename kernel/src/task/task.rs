@@ -174,13 +174,13 @@ impl TaskControlBlock {
     pub fn exit(self: &Arc<TaskControlBlock>, exit_code: i32) {
         let mut task_inner = self.borrow_exclusive_inner();
         task_inner.task_status = TaskStatus::Zombie;
+        drop(task_inner);
         let buffer_usize = unsafe {
             core::slice::from_raw_parts_mut((BUFFER_BEG + PAGE_SIZE) as *mut usize, PAGE_SIZE / 8)
         };
         buffer_usize[0] = EXIT_REQUEST;
         buffer_usize[1] = self.pid;
         buffer_usize[2] = exit_code as usize;
-        drop(task_inner);
         set_server(1);
         suspend_current_and_run_next();
         let mut task_inner = self.borrow_exclusive_inner();
