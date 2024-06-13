@@ -11,7 +11,7 @@ use core::cell::RefMut;
 
 use lazy_static::lazy_static;
 
-use user_lib::{exec, exit, fork, wait, yield_};
+use user_lib::{exec, exit, fork, yield_};
 use user_lib::sync::safe_cell_single::SafeCellSingle;
 
 const BUFFER: usize = usize::MAX - 0x3000 + 1;

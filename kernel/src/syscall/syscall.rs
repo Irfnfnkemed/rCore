@@ -5,8 +5,11 @@ use crate::loader::get_app_data_by_name;
 use crate::mm::address::VirtAddr;
 use crate::mm::page_table::{PageTable, translated_byte_buffer};
 use crate::task::{add_task, current_task, current_user_token, exit_current_and_run_next, suspend_current_and_run_next};
+use crate::task::manager::remove_task;
 
+const FD_STDIN: usize = 0;
 const FD_STDOUT: usize = 1;
+const SIGKILL: u8 = 9;
 
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     match fd {
@@ -19,6 +22,48 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
         }
         _ => {
             panic!("Unsupported fd in sys_write!");
+        }
+    }
+}
+
+pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
+    match fd {
+        FD_STDIN => {
+            return if len == 0 {
+                let mut buffers = translated_byte_buffer(current_user_token(), buf, 1);
+                let ch = crate::sbi::recv();
+                if ch == 0 {
+                    0
+                } else {
+                    buffers[0][0] = ch;
+                    1
+                }
+            } else {
+                let mut buffers = translated_byte_buffer(current_user_token(), buf, len);
+                let mut ch: u8 = 0;
+                let mut index_1 = 0;
+                let mut index_2 = 0;
+                let mut cnt = 0;
+                while cnt < len {
+                    ch = crate::sbi::recv();
+                    if ch == 0 {
+                        suspend_current_and_run_next();
+                        continue;
+                    } else {
+                        buffers[index_1][index_2] = ch;
+                        index_2 += 1;
+                        if index_2 >= buffers[index_1].len() {
+                            index_1 += 1;
+                            index_2 = 0;
+                        }
+                        cnt += 1;
+                    }
+                }
+                len as isize
+            }
+        }
+        _ => {
+            panic!("Unsupported fd in sys_read!");
         }
     }
 }
@@ -73,5 +118,39 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
 
 pub fn sys_yield() -> isize {
     suspend_current_and_run_next();
+    0
+}
+
+pub fn sys_kill(pid: usize, signal: u8) -> isize {
+    return match signal {
+        SIGKILL => {
+            if pid == 0 {
+                println!("[kernel] Initproc cannot be killed!");
+                -1
+            } else if pid == 1 {
+                println!("[kernel] Manager cannot be killed!");
+                -1
+            } else {
+                let cur_pid = current_task().unwrap().pid;
+                if cur_pid == pid {
+                    println!("[kernel] Application (pid = {}) is killed by pid = {}.", pid, cur_pid);
+                    exit_current_and_run_next(SIGKILL as i32);
+                } else {
+                    if let Some(kill_task) = remove_task(pid) {
+                        kill_task.exit(SIGKILL as i32);
+                    } else {
+                        println!("[kernel] No application with pid = {}!", pid);
+                        return -1;
+                    }
+                }
+                println!("[kernel] Application (pid = {}) is killed by pid = {}.", pid, cur_pid);
+                0
+            }
+        }
+        _ => {
+            println!("[kernel] Unsupported signal!");
+            -1
+        }
+    };
     0
 }

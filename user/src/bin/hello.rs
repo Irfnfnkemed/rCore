@@ -4,10 +4,10 @@
 #[macro_use]
 extern crate user_lib;
 
-use user_lib::{exec, fork, wait};
+use user_lib::{exec, fork};
 
 #[no_mangle]
 fn main() -> i32 {
     println!("hello, world!");
-    2
+    0
 }

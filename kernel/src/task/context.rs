@@ -3,7 +3,7 @@ use crate::trap::trap_return;
 #[repr(C)]
 pub struct TaskContext {
     ra: usize,
-    pub sp: usize,
+    sp: usize,
     s: [usize; 12],
 }
 

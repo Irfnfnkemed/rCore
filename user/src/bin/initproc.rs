@@ -9,14 +9,11 @@ use user_lib::{exec, exit, fork, wait, yield_};
 #[no_mangle]
 fn main() -> i32 {
     if fork() == 0 {
-        exec("loop\0");
+        exec("shell\0");
     } else {
         loop {
-            if fork() == 0 {
-                exec("hello\0");
-            }
             let mut exit_code: i32 = 0;
-            let pid = wait(&mut exit_code);
+            let pid = wait(-1, &mut exit_code);
             if pid == -1 {
                 yield_();
                 continue;

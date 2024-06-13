@@ -27,6 +27,7 @@ impl Write for UartRegs {
     }
 }
 
+
 impl UartRegs {
     // read/write port names
     const RBR: usize = 0;

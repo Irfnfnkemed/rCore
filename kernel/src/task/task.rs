@@ -151,14 +151,12 @@ impl TaskControlBlock {
     }
 
     pub fn waitpid(self: &Arc<TaskControlBlock>, pid: isize, exit_code_ptr: *mut i32) -> isize {
-        let mut inner = self.borrow_exclusive_inner();
         let buffer_usize = unsafe {
             core::slice::from_raw_parts_mut((BUFFER_BEG + PAGE_SIZE) as *mut usize, PAGE_SIZE / 8)
         };
         buffer_usize[0] = WAITPID_REQUEST;
         buffer_usize[1] = self.pid;
         buffer_usize[2] = pid as usize;
-        drop(inner);
         set_server(1);
         suspend_current_and_run_next();
         assert_eq!(buffer_usize[0], DONE_REQUEST); // confirm manager work correctly

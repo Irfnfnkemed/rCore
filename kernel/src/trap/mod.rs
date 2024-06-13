@@ -34,11 +34,11 @@ pub fn trap_handler() -> ! {
         }
         Trap::Interrupt(Interrupt::SupervisorSoft) => {
             //println!("[timer] interrupt.");
+            let sip = sip::read().bits();
+            unsafe {
+                asm! {"csrw sip, {sip}", sip = in(reg) sip ^ 2}; // clear the interrupt status of sip
+            }
             if !is_fixed() {
-                let sip = sip::read().bits();
-                unsafe {
-                    asm! {"csrw sip, {sip}", sip = in(reg) sip ^ 2}; // clear the interrupt status of sip
-                }
                 suspend_current_and_run_next();
             }
         }

@@ -1,6 +1,7 @@
 use alloc::collections::{BTreeMap, VecDeque};
 use alloc::sync::Arc;
 use core::mem::take;
+use core::usize::MAX;
 
 use lazy_static::lazy_static;
 
@@ -52,6 +53,20 @@ impl TaskManager {
         }
         return None;
     }
+
+    pub fn remove_task(&mut self, pid: usize) -> Option<Arc<TaskControlBlock>> {
+        let mut to_remove: usize = 0xffffffff;
+        for (index, task) in self.queue.iter().enumerate() {
+            if task.pid == pid {
+                to_remove = index;
+                break;
+            }
+        }
+        if to_remove != 0xffffffff {
+            return self.queue.remove(to_remove);
+        }
+        return None;
+    }
 }
 
 lazy_static! {
@@ -79,4 +94,8 @@ pub fn add_server(task: Arc<TaskControlBlock>) {
 
 pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
     TASK_MANAGER.borrow_exclusive().fetch_task()
+}
+
+pub fn remove_task(pid: usize) -> Option<Arc<TaskControlBlock>> {
+    TASK_MANAGER.borrow_exclusive().remove_task(pid)
 }

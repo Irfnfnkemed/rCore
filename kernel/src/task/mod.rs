@@ -13,7 +13,7 @@ use crate::task::task::{TaskControlBlock, TaskStatus};
 
 mod stack;
 mod task;
-mod manager;
+pub mod manager;
 mod processor;
 mod switch;
 mod context;

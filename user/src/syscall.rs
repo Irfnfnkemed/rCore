@@ -9,6 +9,7 @@ const SYSCALL_GETPID: usize = 172;
 const SYSCALL_FORK: usize = 220;
 const SYSCALL_EXEC: usize = 221;
 const SYSCALL_WAITPID: usize = 260;
+const SYSCALL_KILL: usize = 129;
 
 fn syscall(id: usize, args: [usize; 7]) -> isize {
     let mut ret: isize;
@@ -33,6 +34,10 @@ pub fn sys_write(fd: usize, buffer: &[u8]) -> isize {
     syscall(SYSCALL_WRITE, [fd, buffer.as_ptr() as usize, buffer.len(), 0, 0, 0, 0])
 }
 
+pub fn sys_read(fd: usize, buffer: &mut [u8], len: usize) -> isize {
+    syscall(SYSCALL_READ, [fd, buffer.as_mut_ptr() as usize, len, 0, 0, 0, 0])
+}
+
 pub fn sys_exit(exit_code: i32) -> ! {
     syscall(SYSCALL_EXIT, [exit_code as usize, 0, 0, 0, 0, 0, 0]);
     panic!("sys_exit never returns!");
@@ -52,4 +57,8 @@ pub fn sys_waitpid(pid: isize, exit_code: *mut i32) -> isize {
 
 pub fn sys_yield() -> isize {
     syscall(SYSCALL_YIELD, [0, 0, 0, 0, 0, 0, 0])
+}
+
+pub fn sys_kill(pid: isize, signal: u8) -> isize {
+    syscall(SYSCALL_KILL, [pid as usize, signal as usize, 0, 0, 0, 0, 0])
 }
