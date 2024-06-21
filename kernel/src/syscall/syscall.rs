@@ -6,6 +6,7 @@ use crate::mm::address::VirtAddr;
 use crate::mm::page_table::{PageTable, translated_byte_buffer};
 use crate::task::{add_task, current_task, current_user_token, exit_current_and_run_next, suspend_current_and_run_next};
 use crate::task::manager::remove_task;
+use crate::timer::get_time;
 
 const FD_STDIN: usize = 0;
 const FD_STDOUT: usize = 1;
@@ -153,4 +154,12 @@ pub fn sys_kill(pid: usize, signal: u8) -> isize {
         }
     };
     0
+}
+
+pub fn sys_get_time() -> isize {
+    get_time() as isize
+}
+
+pub fn sys_getpid() -> isize {
+    current_task().unwrap().pid as isize
 }

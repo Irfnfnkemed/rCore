@@ -1,1 +1,42 @@
 # rCore
+
+finished:
+Bootloader
+- Initialization:
+- Entering M mode for the kernel
+- 
+- Allocator:
+- Buddy allocator
+- Frame allocator (or any fine-grained allocator for any size of memory)
+- 
+- Page table:
+- For kernel
+- For each user process
+- 
+- Console:
+- Read
+- Write
+- Message & data transfer
+- User -> Kernel
+- Kernel -> User
+- Kernel -> Kernel
+- User -> User
+- 
+- Process:
+- Process loading
+- ELF parsing
+- Sections loading (ref to page table)
+- Syscall
+- Kick off a new process (Something like fork and exec)
+- Wait for child processes (Something like wait)
+- Exit from a process (Something like exit)
+- Process manager
+- Process creation
+- Process interaction
+- Process termination
+- Manager in user mode
+- 
+- Scheduler:
+- Context switch
+- Scheduling mechanism (must be time sharing)
+- Timer interrupt

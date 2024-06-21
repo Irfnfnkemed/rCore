@@ -4,7 +4,7 @@
 #![feature(alloc_error_handler)]
 
 use crate::buddy::{Allocator, AllocatorWrap};
-use crate::syscall::{sys_exec, sys_exit, sys_fork, sys_kill, sys_read, sys_waitpid, sys_write, sys_yield};
+use crate::syscall::{sys_exec, sys_exit, sys_fork, sys_get_time, sys_getpid, sys_kill, sys_read, sys_waitpid, sys_write, sys_yield};
 
 mod buddy;
 mod syscall;
@@ -85,7 +85,20 @@ pub fn yield_() -> isize {
     sys_yield()
 }
 
-
 pub fn kill(pid: isize, signal: u8) -> isize {
     sys_kill(pid, signal)
+}
+
+pub fn get_time() -> isize {
+    sys_get_time()
+}
+pub fn getpid() -> isize {
+    sys_getpid()
+}
+
+pub fn sleep(period_ms: usize) {
+    let start = sys_get_time();
+    while sys_get_time() < start + period_ms as isize {
+        sys_yield();
+    }
 }

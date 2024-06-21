@@ -56,7 +56,7 @@ fn main() -> i32 {
                             if cnt % 10 == 0 {
                                 read_without_block(STDIN, buf.as_mut());
                                 if buf[0] == ETX {
-                                    if kill(pid as isize, SIGKILL) == 0 {
+                                    if kill(pid, SIGKILL) == 0 {
                                         let kill_pid = waitpid(pid as usize, &mut exit_code);
                                         assert_eq!(pid, kill_pid);
                                         assert_eq!(exit_code, SIGKILL as i32);

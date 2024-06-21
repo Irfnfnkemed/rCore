@@ -62,3 +62,11 @@ pub fn sys_yield() -> isize {
 pub fn sys_kill(pid: isize, signal: u8) -> isize {
     syscall(SYSCALL_KILL, [pid as usize, signal as usize, 0, 0, 0, 0, 0])
 }
+
+pub fn sys_getpid() -> isize {
+    syscall(SYSCALL_GETPID, [0, 0, 0, 0, 0, 0, 0])
+}
+
+pub fn sys_get_time() -> isize {
+    syscall(SYSCALL_GET_TIME, [0, 0, 0, 0, 0, 0, 0])
+}
