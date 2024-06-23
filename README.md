@@ -20,7 +20,6 @@ Bootloader
 - User -> Kernel
 - Kernel -> User
 - Kernel -> Kernel
-- User -> User
 - 
 - Process:
 - Process loading
@@ -30,9 +29,9 @@ Bootloader
 - Kick off a new process (Something like fork and exec)
 - Wait for child processes (Something like wait)
 - Exit from a process (Something like exit)
-- Process manager
+- 
+- Process manager:
 - Process creation
-- Process interaction
 - Process termination
 - Manager in user mode
 - 

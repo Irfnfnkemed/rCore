@@ -17,6 +17,7 @@ pub mod manager;
 mod processor;
 mod switch;
 mod context;
+mod rand;
 
 lazy_static! {
     pub static ref INITPROC: Arc<TaskControlBlock> = Arc::new(

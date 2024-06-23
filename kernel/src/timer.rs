@@ -1,8 +1,9 @@
 use core::arch::global_asm;
 
-use riscv::register::{mhartid, mie, mscratch, mstatus, mtvec};
+use riscv::register::{mhartid, mie, mscratch, mstatus, mtvec, time};
 
 pub const TIME_INTERVAL: usize = 100000;
+pub const CLOCK_FREQ: usize = 12500000;
 
 global_asm!(include_str!("time_handler.S"));
 
@@ -28,4 +29,8 @@ pub unsafe fn init_timer() {
 
 pub fn get_time() -> usize {
     unsafe { (0x0200bff8 as *const usize).read_volatile() }
+}
+
+pub fn get_time_ms() -> usize {
+    time::read() / (CLOCK_FREQ / 1000)
 }

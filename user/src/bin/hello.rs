@@ -6,6 +6,6 @@ extern crate user_lib;
 
 #[no_mangle]
 pub fn main() -> i32 {
-    println!("hello!");
+    println!("hello world!");
     0
 }

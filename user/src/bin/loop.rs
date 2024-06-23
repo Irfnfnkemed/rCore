@@ -5,8 +5,6 @@ extern crate alloc;
 #[macro_use]
 extern crate user_lib;
 
-use alloc::vec::Vec;
-
 #[no_mangle]
 fn main() -> i32 {
     let mut i: usize = 0;

@@ -63,7 +63,7 @@ unsafe fn init() -> ! {
     asm!(
     "mret",
     options(noreturn),
-    );
+    )
 }
 
 fn clear_bss() {
